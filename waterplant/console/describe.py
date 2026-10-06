@@ -13,6 +13,7 @@ def collect(rt: Runtime) -> dict[str, str]:
 
     return {
         "pipeline": treatment_line().describe(),
+        "topology": rt.topology.describe(),
         "store": describe_store(rt.store),
         "intake": rt.flow_repository.describe(),
         "coag": rt.coag_doser.describe(),

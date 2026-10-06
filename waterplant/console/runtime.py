@@ -15,6 +15,7 @@ from waterplant.ph import Stabilizer
 from waterplant.quota import Accumulator
 from waterplant.scheduler import Scheduler
 from waterplant.store import Store
+from waterplant.topology import TopologyRegistry
 from waterplant.turb import Sampler
 
 
@@ -41,3 +42,4 @@ class Runtime:
         self.scheduler = Scheduler(store)
         self.trend = Trend(store)
         self.inventory = Inventory(store)
+        self.topology = TopologyRegistry(store, self.auditor)

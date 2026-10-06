@@ -13,6 +13,7 @@ def collect(rt: Runtime) -> dict[str, object]:
 
     return {
         "pipeline": [step.as_dict() for step in treatment_line().steps()],
+        "topology": rt.topology.state().as_dict(),
         "store": store_state(rt.store).as_dict(),
         "intake": rt.flow_repository.state().as_dict(),
         "coag": rt.coag_doser.state().as_dict(),

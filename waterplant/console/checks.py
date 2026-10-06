@@ -36,4 +36,25 @@ def run_checks(rt: Runtime) -> list[dict[str, str]]:
         )
     else:
         checks.append({"name": "inventory", "status": "ok", "detail": "stock above reorder level"})
+    topology = rt.topology.state()
+    if topology.degraded:
+        checks.append(
+            {
+                "name": "topology",
+                "status": "warn",
+                "detail": f"fallback in use: {topology.degraded_reason}",
+            }
+        )
+    elif topology.pending_change:
+        checks.append(
+            {
+                "name": "topology",
+                "status": "ok",
+                "detail": f"pending change {topology.pending_change} applies next cycle",
+            }
+        )
+    else:
+        checks.append(
+            {"name": "topology", "status": "ok", "detail": f"topology v{topology.version}"}
+        )
     return checks

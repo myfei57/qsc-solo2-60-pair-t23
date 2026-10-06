@@ -19,6 +19,7 @@ def text_report(rt: Runtime) -> str:
         "waterplant control report",
         f"pipeline: {describe['pipeline']}",
         f"pipeline stages={line.count()} contains_filter={line.contains(Stage.FILTER)}",
+        f"topology: {describe['topology']}",
         f"store: {describe['store']}",
         f"intake: {describe['intake']}",
         f"coagulant: {describe['coag']}",

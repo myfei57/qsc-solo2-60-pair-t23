@@ -11,6 +11,8 @@ STAGE_ACTIONS: dict[Stage, str] = {
     Stage.COAG: "dose coagulant",
     Stage.CHLOR: "dose chlorine",
     Stage.FILTER: "filter water",
+    Stage.BACKWASH: "backwash filter beds",
+    Stage.TURBIDITY: "sample turbidity",
     Stage.CLEARWELL: "store clear water",
     Stage.QUOTA: "meter chemicals",
     Stage.AUDIT: "record audit",

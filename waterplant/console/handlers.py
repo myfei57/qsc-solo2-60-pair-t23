@@ -10,12 +10,14 @@ from waterplant.filter import validate_zone
 from waterplant.flow import calibrate_meter, validate_factor
 from waterplant.intake import DEFAULT_WINDOW, Sensor, validate_flow
 from waterplant.inventory import validate_quantity
-from waterplant.ns import Stage, treatment_line
+from waterplant.ns import Stage, Step
+from waterplant.ns.pipeline import STAGE_ACTIONS
 from waterplant.ph import validate_ph
 from waterplant.quota import Quota, check_quota, validate_amount
 from waterplant.reporting import audit_export, telemetry_export, to_csv
 from waterplant.scheduler import validate_threshold
 from waterplant.store import export_state
+from waterplant.topology import IMMEDIATE, NEXT_CYCLE, ChangeConflict
 
 from . import checks, history, ops
 from . import describe as describe_module
@@ -23,7 +25,7 @@ from . import simulate as simulate_module
 from . import snapshot as snapshot_module
 from . import telemetry as telemetry_module
 from .cycle import run_cycle
-from .http import Request, Response, csv_response, json_response, text_response
+from .http import Request, RequestError, Response, csv_response, json_response, text_response
 from .report import text_report
 from .routes import route_table
 from .system import system_payload
@@ -57,16 +59,64 @@ def report(server: "Server", request: Request) -> Response:
 
 
 def pipeline(server: "Server", request: Request) -> Response:
-    line = treatment_line()
-    last = line.last()
+    view = server.runtime.topology.active()
+    topology = view.topology
+    recorded = topology.recorded_nodes()
+    main_stages = [node.stage for node in topology.main_chain()]
+    last = recorded[-1] if recorded else None
+    ordered = (
+        Stage.INTAKE in main_stages
+        and Stage.COAG in main_stages
+        and main_stages.index(Stage.INTAKE) < main_stages.index(Stage.COAG)
+    )
     return json_response(
         {
-            "name": line.name,
-            "steps": [step.as_dict() for step in line.steps()],
-            "ordered": line.before(Stage.INTAKE, Stage.COAG),
-            "last_stage": "" if last is None else last.value,
+            "name": topology.name,
+            "version": view.version,
+            "degraded": view.degraded,
+            "steps": [
+                Step(stage=node.stage, action=STAGE_ACTIONS.get(node.stage, "")).as_dict()
+                for node in recorded
+            ],
+            "ordered": ordered,
+            "last_stage": "" if last is None else last.stage.value,
         }
     )
+
+
+def topology_state(server: "Server", request: Request) -> Response:
+    registry = server.runtime.topology
+    payload = registry.active().as_dict()
+    payload["pending"] = registry.pending()
+    payload["last_cycle"] = registry.last_cycle()
+    return json_response(payload)
+
+
+def topology_change(server: "Server", request: Request) -> Response:
+    change_id = request.str_field("change_id")
+    if not change_id:
+        raise RequestError(400, "change_id is required")
+    activation = request.str_field("activation", NEXT_CYCLE)
+    if activation not in (NEXT_CYCLE, IMMEDIATE):
+        raise RequestError(400, "activation must be next_cycle or immediate")
+    document = request.payload.get("document")
+    if not isinstance(document, dict):
+        raise RequestError(400, "document must be an object")
+    try:
+        result = server.runtime.topology.submit_change(document, activation, change_id)
+    except ChangeConflict as exc:
+        raise RequestError(409, str(exc)) from exc
+    return json_response(result.as_dict())
+
+
+def topology_changes(server: "Server", request: Request) -> Response:
+    changes = server.runtime.topology.changes()
+    return json_response({"changes": changes, "count": len(changes)})
+
+
+def topology_cycles(server: "Server", request: Request) -> Response:
+    cycles = server.runtime.topology.cycles()
+    return json_response({"cycles": cycles, "count": len(cycles)})
 
 
 def catalog(server: "Server", request: Request) -> Response:
