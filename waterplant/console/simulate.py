@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from waterplant.ns import treatment_line
-
 from .http import Request, Response, json_response
 from .runtime import Runtime
 
@@ -70,7 +68,7 @@ def run_simulation(rt: Runtime, request: Request) -> Response:
     if ticks > MAX_TICKS:
         ticks = MAX_TICKS
 
-    last_stage = treatment_line().last()
+    last_stage = rt.topologies.current().last()
     steps = [
         Tick(
             index=index,

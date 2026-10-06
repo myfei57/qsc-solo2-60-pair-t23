@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from waterplant.ns import treatment_line
 from waterplant.store import store_state
 
 from .runtime import Runtime
@@ -11,8 +10,15 @@ from .runtime import Runtime
 def collect(rt: Runtime) -> dict[str, object]:
     """Combine every component projection into one document."""
 
+    topology = rt.topologies.current()
     return {
-        "pipeline": [step.as_dict() for step in treatment_line().steps()],
+        "pipeline": [node.as_dict() for node in topology.plan()],
+        "topology": {
+            "version": rt.topologies.version(),
+            "degraded": rt.topologies.is_degraded(),
+            "degraded_reason": rt.topologies.degraded_reason(),
+            "document": topology.as_dict(),
+        },
         "store": store_state(rt.store).as_dict(),
         "intake": rt.flow_repository.state().as_dict(),
         "coag": rt.coag_doser.state().as_dict(),

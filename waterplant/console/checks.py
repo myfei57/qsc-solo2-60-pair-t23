@@ -36,4 +36,31 @@ def run_checks(rt: Runtime) -> list[dict[str, str]]:
         )
     else:
         checks.append({"name": "inventory", "status": "ok", "detail": "stock above reorder level"})
+    topology = rt.topologies
+    missing = topology.current().missing_required()
+    if topology.is_degraded():
+        checks.append(
+            {
+                "name": "topology",
+                "status": "warn",
+                "detail": f"last good v{topology.version()} retained: {topology.degraded_reason()}",
+            }
+        )
+    elif missing:
+        checks.append(
+            {
+                "name": "topology",
+                "status": "fail",
+                "detail": "missing required stages: " + ",".join(stage.value for stage in missing),
+            }
+        )
+    else:
+        staged = " staged change pending" if topology.staged() is not None else ""
+        checks.append(
+            {
+                "name": "topology",
+                "status": "ok",
+                "detail": f"version {topology.version()} active{staged}",
+            }
+        )
     return checks

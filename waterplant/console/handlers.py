@@ -10,7 +10,7 @@ from waterplant.filter import validate_zone
 from waterplant.flow import calibrate_meter, validate_factor
 from waterplant.intake import DEFAULT_WINDOW, Sensor, validate_flow
 from waterplant.inventory import validate_quantity
-from waterplant.ns import Stage, treatment_line
+from waterplant.ns import Stage
 from waterplant.ph import validate_ph
 from waterplant.quota import Quota, check_quota, validate_amount
 from waterplant.reporting import audit_export, telemetry_export, to_csv
@@ -22,6 +22,7 @@ from . import describe as describe_module
 from . import simulate as simulate_module
 from . import snapshot as snapshot_module
 from . import telemetry as telemetry_module
+from . import topology as topology_module
 from .cycle import run_cycle
 from .http import Request, Response, csv_response, json_response, text_response
 from .report import text_report
@@ -57,20 +58,57 @@ def report(server: "Server", request: Request) -> Response:
 
 
 def pipeline(server: "Server", request: Request) -> Response:
-    line = treatment_line()
-    last = line.last()
+    topology = server.runtime.topologies.current()
+    steps = [
+        {"stage": node.stage.value, "action": node.action}
+        for node in topology.plan()
+        if node.stage is not None
+    ]
+    effective = topology.effective_main_stages()
+    ordered = (
+        Stage.INTAKE in effective
+        and Stage.COAG in effective
+        and effective.index(Stage.INTAKE) < effective.index(Stage.COAG)
+    )
+    last = topology.last()
     return json_response(
         {
-            "name": line.name,
-            "steps": [step.as_dict() for step in line.steps()],
-            "ordered": line.before(Stage.INTAKE, Stage.COAG),
+            "name": topology.name,
+            "steps": steps,
+            "ordered": ordered,
             "last_stage": "" if last is None else last.value,
+            "topology_version": server.runtime.topologies.version(),
+            "walk": [node.as_dict() for node in topology.plan()],
         }
     )
 
 
 def catalog(server: "Server", request: Request) -> Response:
     return json_response({"routes": [route.as_dict() for route in route_table()]})
+
+
+def topology_current(server: "Server", request: Request) -> Response:
+    return topology_module.current(server.runtime, request)
+
+
+def topology_submit(server: "Server", request: Request) -> Response:
+    return topology_module.submit(server.runtime, request)
+
+
+def topology_refresh(server: "Server", request: Request) -> Response:
+    return topology_module.refresh(server.runtime, request)
+
+
+def topology_validate(server: "Server", request: Request) -> Response:
+    return topology_module.order_preview(server.runtime, request)
+
+
+def topology_cycles(server: "Server", request: Request) -> Response:
+    return topology_module.cycles(server.runtime, request)
+
+
+def topology_audit(server: "Server", request: Request) -> Response:
+    return topology_module.audit_trail(server.runtime, request)
 
 
 def ops_counters(server: "Server", request: Request) -> Response:

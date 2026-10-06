@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from waterplant.ns import Stage, treatment_line
+from waterplant.ns import Stage
 
 from .describe import collect as collect_describe
 from .runtime import Runtime
@@ -14,11 +14,16 @@ def text_report(rt: Runtime) -> str:
 
     describe = collect_describe(rt)
     telemetry = collect_telemetry(rt)
-    line = treatment_line()
+    topology = rt.topologies.current()
     rows = [
         "waterplant control report",
         f"pipeline: {describe['pipeline']}",
-        f"pipeline stages={line.count()} contains_filter={line.contains(Stage.FILTER)}",
+        (
+            f"topology version={rt.topologies.version()} stages={topology.count()} "
+            f"contains_filter={topology.contains(Stage.FILTER)} "
+            f"degraded={rt.topologies.is_degraded()}"
+        ),
+        f"walk: {' -> '.join(node.node_id for node in topology.plan())}",
         f"store: {describe['store']}",
         f"intake: {describe['intake']}",
         f"coagulant: {describe['coag']}",

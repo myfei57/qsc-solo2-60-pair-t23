@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from waterplant.ns import treatment_line
 from waterplant.store import describe_store
 
 from .runtime import Runtime
@@ -11,8 +10,10 @@ from .runtime import Runtime
 def collect(rt: Runtime) -> dict[str, str]:
     """Return one description line per component."""
 
+    topology = rt.topologies.current()
+    degraded = " degraded" if rt.topologies.is_degraded() else ""
     return {
-        "pipeline": treatment_line().describe(),
+        "pipeline": topology.describe() + f" version={rt.topologies.version()}{degraded}",
         "store": describe_store(rt.store),
         "intake": rt.flow_repository.describe(),
         "coag": rt.coag_doser.describe(),

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Callable, Iterable
 
 from waterplant.store import Store
+from waterplant.topology import CycleInProgress
 
 from . import handlers
 from .http import Request, RequestError, Response, Router, build_request, error_response
@@ -39,6 +40,8 @@ class Server:
             return handler(self, request)
         except RequestError as exc:
             return error_response(exc.status, exc.message)
+        except CycleInProgress as exc:
+            return error_response(409, str(exc))
         except ValueError as exc:
             return error_response(400, str(exc))
         except Exception as exc:  # noqa: BLE001 - last resort for a live console
